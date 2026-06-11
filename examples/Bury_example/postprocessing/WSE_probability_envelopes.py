@@ -52,8 +52,18 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
 
-# Some useful functions: 
+
 def produce_percentiles(directory, river):    
+    """
+    Reads the individual wse profiles in directory, and produces the 0 : 10 : 100 percentiles
+
+    Args:
+        directory (str): path to the folder with the individual WSE profiles produced by HECRAS
+        river (str): name of the river (same as HECRAS) along which the percentiles are calculated 
+
+    """
+
+
         # Collecte des données WSE
         # ------------------------
         
