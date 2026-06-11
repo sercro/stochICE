@@ -1,8 +1,9 @@
 [project]
 name = "stochICE"
-version = "0.0.1"
+version = "0.8.0"
 authors = [
-  { name="Jason Duguay", email="jason.duguay@usherbrooke.ca" }, { name="Mathieu Fouquet"}
+  { name="Jason Duguay", email="jason.duguay@usherbrooke.ca" }, { name="Mathieu Fouquet"},
+  { name="Sergio Croquer", email="sergio.croquer@usherbrooke.ca"}
 ]
 description = "Tool to assist in stochastic ice jam modelling"
 readme = "README.md"
