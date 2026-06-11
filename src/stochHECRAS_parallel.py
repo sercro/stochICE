@@ -22,12 +22,13 @@ from rasterio.features import shapes
 import geopandas as gpd
 from shapely.geometry import shape
 
-
+import stochHECRAS_postprocessing
 
 from shapely.ops import unary_union
 
 
 class StochHECRASParallel:
+
     """
     A class to manage and execute parallel stochastic simulations
     for ice-jam flood modeling using HEC-RAS.
@@ -51,7 +52,7 @@ class StochHECRASParallel:
         self.params = params
         self.cleanup_after_run = cleanup_after_run
         self.scripts_list = []
-    
+
         #location of list of parameters to resuse
         if seed:
             self.seed=seed
@@ -62,6 +63,8 @@ class StochHECRASParallel:
         batch_name = params.get("batch_ID", "Unknown Batch")
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
+        self.write_maps_flag = bool(self.params['write_maps'])
+
         print(f"\n{'='*60}")
         print(f"            StochICE Parallel Simulation Launch")
         print(f"{'='*60}\n")
@@ -103,16 +106,30 @@ class StochHECRASParallel:
             # self.setup_stochice_data_directory()
             self.run_scripts_in_parallel()
             self.copy_generated_data_back()
-            self.create_combined_maximum_depth_map()
-            self.create_combined_frequency_map()
-            self.create_combined_maximum_wse_map()
-            # self.make_matrice_intensite()
-            self.process_objectives_de_protection()
-            self.plot_wse_envelope()
 
-            if self.cleanup_after_run:
-                self.cleanup_generated_files()
-    
+            # SC
+            stochHECRAS_post = stochHECRAS_postprocessing.StochHECRAS_postprocessing(self)
+
+            stochHECRAS_post.plot_basic_wse_envelope()
+
+        if self.write_maps_flag:
+            print("\n\n----------------------------------------------------------")
+            print("         Making ensemble (simulation) maps")
+            print("----------------------------------------------------------\n")
+            stochHECRAS_post.create_combined_maximum_depth_map()    
+            stochHECRAS_post.create_combined_maximum_wse_map()
+            stochHECRAS_post.create_combined_frequency_map(self) # You need to parse stochHECRAS_parallel so create_combined_frequency_map has access to the stochHECRAS_parallel.parse_simulation_num() function
+            # stochHECRAS_post.create_depth_percentiles()
+
+        else: 
+            print("\n\n-----------------------------------------------------------")
+            print("           Ensemble maps are NOT created")
+            print("         Invidual tif files are still saved")
+            print("-----------------------------------------------------------\n")
+            
+        if self.cleanup_after_run:
+            self.cleanup_generated_files()
+
         # Save state and input scripts for reproducibility
         # save_state(self)
         # self.save_script_to_inputs()
@@ -152,7 +169,15 @@ class StochHECRASParallel:
             file.write(f"depth = '{self.params['depth']}'\n\n")
 
             file.write(f"NSims = {self.params['NSims']}\n")
-            file.write(f"ice_jam_reach = {self.params['ice_jam_reach']}\n\n")
+            file.write(f"ice_jam_reach = {self.params['ice_jam_reach']}\n")
+            file.write(f"ice_jam_in_OB = {self.params['ice_jam_in_OB']}\n") 
+
+            file.write(f"write_maps = {self.write_maps_flag}\n")
+            file.write(f"ice_fixed_manning = {self.params['ice_fixed_manning']}\n")                        
+            file.write(f"ice_max_mean_velocity = {self.params['ice_max_mean_velocity']}\n") 
+            file.write(f"reach_distributions = {self.params['reach_distributions']}\n")
+
+            file.write(f"proc_number = 111\n") # Proc number
 
             # Write stochastic variables
             file.write("stochVars = {\n")
@@ -163,7 +188,8 @@ class StochHECRASParallel:
             # Final script setup
             file.write(
                 "Chateauguay_embacle = ice.StochICE_HECRAS("
-                "path, batch_ID, ras, geo, flowFile, wse, depth, NSims, ice_jam_reach, stochVars)\n"
+                # "path, batch_ID, ras, geo, flowFile, wse, depth, NSims, ice_jam_reach, stochVars)\n"
+                "path, batch_ID, ras, geo, flowFile, wse, depth, NSims, ice_jam_reach, ice_jam_in_OB, write_maps, ice_fixed_manning, ice_max_mean_velocity, reach_distributions, stochVars, proc_number)\n"    # SC            
             )
 
     def setup_stochice_data_directory(self):
@@ -189,10 +215,13 @@ class StochHECRASParallel:
         self.max_wse_path = os.path.join(self.results_path, "Ensemble_maximum_wse_maps")
         self.max_depth_path = os.path.join(self.results_path, "Ensemble_maximum_depth_maps")
         self.frequency_tif_path = os.path.join(self.results_path, "Ensemble_frequency_maps")
-        self.obj_prot_path = os.path.join(self.results_path, "Objectives_de_protection")
+        # self.obj_prot_path = os.path.join(self.results_path, "Objectives_de_protection")
         self.data_geo_files_path = os.path.join(self.inputs_path, "Individual_GeoFiles")
         self.data_flow_files_path = os.path.join(self.inputs_path, "Individual_FlowFiles")
-    
+
+        self.basic_wse_path = os.path.join(self.results_path,"WSE_envelopes")
+        # self.percentiles_path = os.path.join(self.results_path,"Percentile_maps")
+
         paths = [
             self.data_path,
             self.inputs_path,
@@ -205,9 +234,11 @@ class StochHECRASParallel:
             self.max_depth_path,
             self.max_wse_path,
             self.frequency_tif_path,
-            self.obj_prot_path,
+#            self.obj_prot_path,
             self.data_geo_files_path,
             self.data_flow_files_path,
+            self.basic_wse_path,
+            # self.percentiles_path,
         ]
     
         if os.path.exists(self.data_path):
@@ -300,9 +331,15 @@ class StochHECRASParallel:
     
             with open(script_path_abs, 'r') as script_file:
                 script_content = script_file.read()
-    
+
+            # SC : add proc number to the script (used for sim id and output file names)
+                # original step
+            # modified_script_content = script_content.replace(src_folder_abs, new_folder_path)
+
+                # Current version
             modified_script_content = script_content.replace(src_folder_abs, new_folder_path)
-    
+            modified_script_content = modified_script_content.replace("proc_number = 111\n", f"proc_number = {i}\n")
+
             new_script_name = f"{os.path.splitext(script_name)[0]}_{i}.py"
             new_script_path = os.path.join(script_dir, new_script_name)
             with open(new_script_path, 'w') as new_script_file:
@@ -446,6 +483,9 @@ class StochHECRASParallel:
         for log_file in log_files:
             log_file.close()
 
+        # Mercifully close all processes (i.e, allow time to close files and clean up)
+        for process in processes:
+            process.terminate()
 
 
     def copy_generated_data_back(self):
@@ -462,6 +502,11 @@ class StochHECRASParallel:
         Returns:
             None
         """
+
+        print("----------------------------------------------------------")
+        print("                   Copying data back")
+        print("----------------------------------------------------------\n")
+
         data_subfolders = [
             r'Inputs\Individual_FlowFiles',
             r'Inputs\Individual_GeoFiles',
@@ -483,7 +528,16 @@ class StochHECRASParallel:
             csv_path = os.path.join(new_folder_path, "sim_parameters.csv")
             if os.path.exists(csv_path):
                 df = pd.read_csv(csv_path)
-                df['simulation_id'] = i  # Add identifier column
+
+                # df['simulation_id'] = i  # Add identifier column
+
+                # SC
+                # Add identifier column as sim_X_Y (X is the proc id, Y is a simulation number)
+                # num_list = [num for num in range(len(df))] 
+                # num_list_text = [f'meh_{i:02d}_{num:04d}' for num in range(len(df))] # vector in the form [sim_0i_0000X]
+                # df.insert(loc=0, column='simulation_id', value=num_list_text) # Insert column at the begining
+
+                # Append csv dataframe to all dataframes
                 all_dataframes.append(df)
             
             for subfolder in data_subfolders:
@@ -511,165 +565,166 @@ class StochHECRASParallel:
             print(f"Batch simulation parameters saved to {combined_csv_path}")
 
 
-    def plot_wse_envelope(self):
-        """
-        Generates water surface elevation (WSE) envelope plots.
+    # def plot_wse_envelope(self):
+    #     """
+    #     Generates water surface elevation (WSE) envelope plots.
 
-        This method groups CSV files by river number, plots the WSE profiles for
-        each river, and saves the plots to the WSE_envelopes folder.
+    #     This method groups CSV files by river number, plots the WSE profiles for
+    #     each river, and saves the plots to the WSE_envelopes folder.
 
-        Args:
-            None
+    #     Args:
+    #         None
 
-        Returns:
-            None
-        """
-        river_files = {}
+    #     Returns:
+    #         None
+    #     """
+    #     river_files = {}
 
-        # Collect files grouped by river number
-        for root, dirs, files in os.walk(self.wse_profiles_path):
-            for file in files:
-                if file.endswith('.csv') and 'River' in file:
-                    river_number = file.split('_')[0]  # Extract river number
-                    if river_number not in river_files:
-                        river_files[river_number] = []
-                    river_files[river_number].append(os.path.join(root, file))
+    #     # Collect files grouped by river number
+    #     for root, dirs, files in os.walk(self.wse_profiles_path):
+    #         for file in files:
+    #             if file.endswith('.csv') and 'River' in file:
+    #                 river_number = file.split('_')[0]  # Extract river number
+    #                 if river_number not in river_files:
+    #                     river_files[river_number] = []
+    #                 river_files[river_number].append(os.path.join(root, file))
 
-        envelope_path = os.path.join(self.results_path, "WSE_envelopes")
-        os.makedirs(envelope_path, exist_ok=True)
+    #     envelope_path = os.path.join(self.results_path, "WSE_envelopes")
+    #     os.makedirs(envelope_path, exist_ok=True)
 
-        # Plot WSE profiles for each river
-        for river_number, file_paths in river_files.items():
-            plt.figure(figsize=(10, 6))
-            for file_path in file_paths:
-                data = pd.read_csv(file_path)
-                plt.plot(data.iloc[:, 0], data.iloc[:, 1], label=os.path.basename(file_path))
+    #     # Plot WSE profiles for each river
+    #     for river_number, file_paths in river_files.items():
+    #         plt.figure(figsize=(10, 6))
+    #         for file_path in file_paths:
+    #             data = pd.read_csv(file_path)
+    #             plt.plot(data.iloc[:, 0], data.iloc[:, 1], label=os.path.basename(file_path))
 
-            # Set plot properties
-            plt.xlabel('Chainage (m)')
-            plt.ylabel('Water Surface Elevation (m)')
-            plt.title(f'Water Surface Elevation Profile for {river_number}')
-            plt.legend()
+    #         # Set plot properties
+    #         plt.xlabel('Chainage (m)')
+    #         plt.ylabel('Water Surface Elevation (m)')
+    #         plt.title(f'Water Surface Elevation Profile for {river_number}')
+    #         plt.legend()
 
-            # Save the plot
-            plot_filename = os.path.join(envelope_path, f"{river_number}_wse_envelope.png")
-            plt.savefig(plot_filename)
+    #         # Save the plot
+    #         plot_filename = os.path.join(envelope_path, f"{river_number}_wse_envelope.png")
+    #         plt.savefig(plot_filename)
            
-            plt.close()
+    #         plt.close()
 
-    def create_combined_maximum_depth_map(self):
-        """
-        Creates a combined maximum depth map from individual depth map files.
+    # SC This is an SC Change
+    # def create_combined_maximum_depth_map(self):
+    #     """
+    #     Creates a combined maximum depth map from individual depth map files.
 
-        This method finds and combines all maximum depth map TIFF files into
-        a single raster file representing the maximum depths across all simulations.
+    #     This method finds and combines all maximum depth map TIFF files into
+    #     a single raster file representing the maximum depths across all simulations.
 
-        Args:
-            None
+    #     Args:
+    #         None
 
-        Returns:
-            None
-        """
-        depth_map_files = glob.glob(os.path.join(self.max_depth_path, "maximum_depth_map_*.tif"))
+    #     Returns:
+    #         None
+    #     """
+    #     depth_map_files = glob.glob(os.path.join(self.max_depth_path, "maximum_depth_map_*.tif"))
 
-        if not depth_map_files:
-            print("Warning: No 'maximum_depth_map' files found. Path too long?")
-            return
+    #     if not depth_map_files:
+    #         print("Warning: No 'maximum_depth_map' files found. Path too long?")
+    #         return
 
-        with rasterio.open(depth_map_files[0]) as src:
-            meta = src.meta
-            depth_stack = np.stack([rasterio.open(f).read(1) for f in depth_map_files])
+    #     with rasterio.open(depth_map_files[0]) as src:
+    #         meta = src.meta
+    #         depth_stack = np.stack([rasterio.open(f).read(1) for f in depth_map_files])
 
-        max_depth = np.max(depth_stack, axis=0)
-        meta.update(dtype=rasterio.float32, count=1, compress='DEFLATE')
+    #     max_depth = np.max(depth_stack, axis=0)
+    #     meta.update(dtype=rasterio.float32, count=1, compress='DEFLATE')
 
-        combined_path = os.path.join(self.max_depth_path, "combined_maximum_depth_map.tif")
-        with rasterio.open(combined_path, 'w', **meta) as dst:
-            dst.write(max_depth.astype(rasterio.float32), 1)
+    #     combined_path = os.path.join(self.max_depth_path, "combined_maximum_depth_map.tif")
+    #     with rasterio.open(combined_path, 'w', **meta) as dst:
+    #         dst.write(max_depth.astype(rasterio.float32), 1)
         
 
-    def create_combined_maximum_wse_map(self):
-        """
-        Creates a combined maximum wse map from individual wse map files.
+    # def create_combined_maximum_wse_map(self):
+    #     """
+    #     Creates a combined maximum wse map from individual wse map files.
 
-        This method finds and combines all maximum wse map TIFF files into
-        a single raster file representing the maximum wse across all simulations.
+    #     This method finds and combines all maximum wse map TIFF files into
+    #     a single raster file representing the maximum wse across all simulations.
 
-        Args:
-            None
+    #     Args:
+    #         None
 
-        Returns:
-            None
-        """
-        wse_map_files = glob.glob(os.path.join(self.max_wse_path, "maximum_wse_map_*.tif"))
+    #     Returns:
+    #         None
+    #     """
+    #     wse_map_files = glob.glob(os.path.join(self.max_wse_path, "maximum_wse_map_*.tif"))
 
-        if not wse_map_files:
-            print("No 'maximum_wse_map' files found.")
-            return
+    #     if not wse_map_files:
+    #         print("No 'maximum_wse_map' files found.")
+    #         return
 
-        with rasterio.open(wse_map_files[0]) as src:
-            meta = src.meta
-            wse_stack = np.stack([rasterio.open(f).read(1) for f in wse_map_files])
+    #     with rasterio.open(wse_map_files[0]) as src:
+    #         meta = src.meta
+    #         wse_stack = np.stack([rasterio.open(f).read(1) for f in wse_map_files])
 
-        max_wse = np.max(wse_stack, axis=0)
-        meta.update(dtype=rasterio.float32, count=1, compress='DEFLATE')
+    #     max_wse = np.max(wse_stack, axis=0)
+    #     meta.update(dtype=rasterio.float32, count=1, compress='DEFLATE')
 
-        combined_path = os.path.join(self.max_wse_path, "combined_maximum_wse_map.tif")
-        with rasterio.open(combined_path, 'w', **meta) as dst:
-            dst.write(max_wse.astype(rasterio.float32), 1)
+    #     combined_path = os.path.join(self.max_wse_path, "combined_maximum_wse_map.tif")
+    #     with rasterio.open(combined_path, 'w', **meta) as dst:
+    #         dst.write(max_wse.astype(rasterio.float32), 1)
         
 
-    def create_combined_frequency_map(self):
-        """
-        Creates a combined flood frequency map from individual frequency map files.
+    # def create_combined_frequency_map(self):
+    #     """
+    #     Creates a combined flood frequency map from individual frequency map files.
     
-        This method calculates the global flood frequency across all simulations and
-        generates a combined map with values representing the percentage of flooding (0-100).
+    #     This method calculates the global flood frequency across all simulations and
+    #     generates a combined map with values representing the percentage of flooding (0-100).
     
-        Args:
-            None
+    #     Args:
+    #         None
     
-        Returns:
-            None
-        """
-        import numpy as np
+    #     Returns:
+    #         None
+    #     """
+    #     import numpy as np
     
-        # Get list of frequency map files
-        frequency_map_files = glob.glob(os.path.join(self.frequency_tif_path, "frequency_floodmap_*.tif"))
-        if not frequency_map_files:
-            print("No 'frequency_floodmap' files found.")
-            return
+    #     # Get list of frequency map files
+    #     frequency_map_files = glob.glob(os.path.join(self.frequency_tif_path, "frequency_floodmap_*.tif"))
+    #     if not frequency_map_files:
+    #         print("No 'frequency_floodmap' files found.")
+    #         return
     
-        # Number of simulations per map (from your parse method)
-        simulations_per_process = self.parse_simulation_count()
-        num_maps = len(frequency_map_files)
-        total_simulations = simulations_per_process * num_maps
+    #     # Number of simulations per map (from your parse method)
+    #     simulations_per_process = self.parse_simulation_count()
+    #     num_maps = len(frequency_map_files)
+    #     total_simulations = simulations_per_process * num_maps
     
-        # Read and process the maps
-        with rasterio.open(frequency_map_files[0]) as src:
-            meta = src.meta
-            # Initialize array to accumulate the number of flooded instances
-            flooded_count = np.zeros(src.shape, dtype=np.float32)
+    #     # Read and process the maps
+    #     with rasterio.open(frequency_map_files[0]) as src:
+    #         meta = src.meta
+    #         # Initialize array to accumulate the number of flooded instances
+    #         flooded_count = np.zeros(src.shape, dtype=np.float32)
     
-        # For each map, convert percentage to flooded count and accumulate
-        for f in frequency_map_files:
-            with rasterio.open(f) as src:
-                frequency_data = src.read(1)  # Values are 0-100 (percentage)
-                # Convert percentage to number of flooded simulations for this map
-                flooded_in_map = (frequency_data / 100.0) * simulations_per_process
-                flooded_count += flooded_in_map
+    #     # For each map, convert percentage to flooded count and accumulate
+    #     for f in frequency_map_files:
+    #         with rasterio.open(f) as src:
+    #             frequency_data = src.read(1)  # Values are 0-100 (percentage)
+    #             # Convert percentage to number of flooded simulations for this map
+    #             flooded_in_map = (frequency_data / 100.0) * simulations_per_process
+    #             flooded_count += flooded_in_map
     
-        # Calculate global frequency as a percentage
-        combined_frequency = (flooded_count / total_simulations) * 100.0
-        combined_frequency = np.clip(combined_frequency, 0, 100)  # Ensure range 0-100
+    #     # Calculate global frequency as a percentage
+    #     combined_frequency = (flooded_count / total_simulations) * 100.0
+    #     combined_frequency = np.clip(combined_frequency, 0, 100)  # Ensure range 0-100
     
-        # Update metadata and write output
-        meta.update(dtype=rasterio.float32, count=1, compress='DEFLATE')
-        combined_path = os.path.join(self.frequency_tif_path, "combined_frequency_floodmap.tif")
-        with rasterio.open(combined_path, 'w', **meta) as dst:
-            dst.write(combined_frequency, 1)
+    #     # Update metadata and write output
+    #     meta.update(dtype=rasterio.float32, count=1, compress='DEFLATE')
+    #     combined_path = os.path.join(self.frequency_tif_path, "combined_frequency_floodmap.tif")
+    #     with rasterio.open(combined_path, 'w', **meta) as dst:
+    #         dst.write(combined_frequency, 1)
     
-        print(f"Combined frequency map created at {combined_path}")
+    #     print(f"Combined frequency map created at {combined_path}")
 
 
     def make_matrice_intensite(self):

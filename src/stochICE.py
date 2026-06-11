@@ -16,6 +16,7 @@ import pickle
 import stochHECRAS
 import random
 import stochHECRAS_parallel
+import stochHECRAS_postprocessing as post
 
 from datetime import datetime
 
@@ -43,7 +44,9 @@ class StochICE_HECRAS:
     """
 
     def __init__(self, prjDir: str, batch_ID: str, ras_file: str, geo_file: str,
-                 flow_file: str, wse_file: str, depth_file: str, NSims: int, ice_jam_reach: int, stochvars: dict):
+                 flow_file: str, wse_file: str, depth_file: str, NSims: int, ice_jam_reach: int, ice_jam_in_OB: bool, 
+                 write_maps: int,ice_fixed_man: int, ice_max_mean_velocity: float, reach_distributions: list, stochvars: dict, proc_number): # SC_Change
+        print("\n\nHola 1\n\n")
         """
         Initializes the StochICE_HECRAS class and sets up the simulation environment.
 
@@ -67,15 +70,27 @@ class StochICE_HECRAS:
         self.wse_map_path = os.path.join(self.prjDir, "MonteCarlo", wse_file)
         self.depth_map_path = os.path.join(self.prjDir, "MonteCarlo", depth_file)
 
+        self.proc_number = proc_number # SC : the processor number
+
         self.NSims = NSims
         self.ice_jam_reach = ice_jam_reach
+        self.ice_jam_in_OB = bool(ice_jam_in_OB)
+
+        self.ice_fixed_man = bool(ice_fixed_man)
+
+        self.ice_max_mean_velocity = float(ice_max_mean_velocity)
+        
+        self.write_maps_flag = bool(write_maps)
+
+        self.reach_distributions = reach_distributions
+
         self.stochVars = stochvars
 
         self.xs_data = {}
         self.ice_variables = [
             'Ice Thickness', 'Ice Mann', 'Ice Specific Gravity',
             'Ice Is Channel', 'Ice Is OB', 'Ice Friction Angle',
-            'Ice Porosity', 'Ice K1', 'Ice Max Mean', 'Ice Cohesion',
+            'Ice Porosity', 'Ice K1', 'Ice Max Mean Vel', 'Ice Cohesion',
             'Ice Fixed Mann'
         ]
 
@@ -97,12 +112,14 @@ class StochICE_HECRAS:
         self.stochHECRAS.preprocess_sims()
         self.stochHECRAS.new_launch_sims()
 
-        print("----------------------------------------------------------")
-        print("            Making frequency and max depth maps")
-        print("----------------------------------------------------------\n")
-        self.stochHECRAS.make_frequency_flood_map()
-        self.stochHECRAS.make_maximum_depth_map()
-        self.stochHECRAS.make_maximum_wse_map()
+        if self.write_maps_flag:
+            print("----------------------------------------------------------")
+            print("         Making processor specific maps")
+            print("----------------------------------------------------------\n")
+            self.stochHECRAS.make_frequency_flood_map()
+            self.stochHECRAS.make_maximum_depth_map()
+            self.stochHECRAS.make_maximum_wse_map()
+
 
     def __getstate__(self):
         """
@@ -137,7 +154,7 @@ class StochICE_HECRAS:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print("\n")
         print("----------------------------------------------------------")
-        print("      Running stochICE flood modelling system v0.0.1      ")
+        print("      Running stochICE flood modelling system v0.9.0     ")
         print("----------------------------------------------------------\n")
         print(f"Simulation started at: {current_time}")
         print(f"Running HEC-RAS project file: {self.ras_file}")
@@ -291,7 +308,7 @@ class StochICE_HECRAS:
                     for variable in self.ice_variables:
                         self.xs_data[xs][variable] = {}
                     flag = True  # Start collecting ice parameters
-
+                
                 # Extract ice parameters
                 elif flag:
                     for variable in self.ice_variables:
@@ -472,6 +489,26 @@ class StochICE_HECRAS:
                 raise ValueError("'jam_locations' must be a list of possible values.")
             print(f"Variable 'jam_locations' found with list of values: {self.stochVars['jam_locations']}")
 
+        # SC Block
+        if 'ds_elev' in self.stochVars:
+            print(f"Variable 'ds_elev' found with value: {self.stochVars['ds_elev']}")
+            self.is_there_ds_elev=True
+        else:  
+            print(f"Warning: there is no key for variable downstream WSE condition.")
+            self.is_there_ds_elev=False
+
+        if self.ice_fixed_man:
+            print(f"Warning, ice jam fixed Manning n set to True.")
+        else: 
+            print(f"Fixed Manning n set to False. Nezhikovsky's data will be used")
+
+        print(f"Maximum under ice mean velocity set to: {self.ice_max_mean_velocity} m/s.")
+
+        print(f"Individual flowrates are proportional to the upstream flowrate:")
+        print(f"xsection - % of upstream Q\n")        
+        for element in self.reach_distributions:
+            print(f"{element[0]} - {element[1]}")
+
         print('\nVariables entered correctly!\n')
 
     def generate_stochastic_values(self):
@@ -515,6 +552,10 @@ class StochICE_HECRAS:
                                                          decimal_places=decimal_places, plot=True)
                 elif dist_type == 'Normal':
                     values = self.generate_normal_values(params, decimal_places)
+
+                elif dist_type == 'exponential':
+                    values = self.generate_exponential_values(var,params,decimal_places)
+                    
                 elif dist_type == 'Weibull':
                     values = self.generate_Weibull_values(var, params[0], params[1], limit_value=params[2],
                                                           decimal_places=decimal_places, plot=True)
@@ -690,6 +731,31 @@ class StochICE_HECRAS:
         mean, std_dev = params
         values = norm.rvs(loc=mean, scale=std_dev, size=self.NSims)
         return np.round(values, decimal_places).tolist()
+
+    def generate_exponential_values(self, var, params, decimal_places):
+        """
+        Generates values from an exponential distribution.
+ 
+        Args:
+            params (list): List containing [min, max, scale factor].
+            decimal_places (int): The number of decimal places to round the generated values to.
+ 
+        Returns:
+            list: A list of `NSims` values sampled from the normal distribution, rounded to the specified decimal places.
+        """
+        min_value, max_value, scale_factor = params
+ 
+        values = []
+        while len(values) < self.NSims:
+            x = np.random.exponential(scale_factor)
+            if min_value <= x <= max_value:
+                values.append(x)
+ 
+        data = pd.DataFrame(values)
+        data.to_csv(r'D:\Glace\exp.csv')    
+        print('Exponential values done! ')
+        return np.round(values,decimal_places).tolist()
+ 
 
 
     def plot_fitted_distribution(self, var, observed_data, sampled_data, distribution, params, bins=50, save_as_pdf=True, pdf_filename="fitted_distribution_plot.pdf"):
