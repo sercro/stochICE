@@ -22,6 +22,7 @@ class StochHECRAS:
     
         
     def __init__(self, stochICE):
+
         """
         Initializes the StochHECRAS class with stochastic input configurations.
     
@@ -60,14 +61,19 @@ class StochHECRAS:
             row = None
         
         mappings = {
-            "Q": "flow",
-            "phi": "phi",
-            "porosity": "porosity",
-            "Frontthick": "ice_thickness",
-            'ice_cover_n':"ice_cover_n",
-            "jam_loc_upstream": "location_upstream",
-            "jam_loc_downstream": "location_downstream"
-        }
+                "Q": "flow",
+                "phi": "phi",
+                "porosity": "porosity",
+                "Frontthick": "ice_thickness",
+                'ice_cover_n':"ice_cover_n",
+                "jam_loc_upstream": "location_upstream",
+                "jam_loc_downstream": "location_downstream"
+            }
+
+
+        if self.stochICE.is_there_ds_elev: # Add ds_elev to the mappings dictionary if it was parsed. 
+            mappings["ds_elev"] = "ds_elev"
+
         
         for param, attr in mappings.items():
             if param in self.parameters:
@@ -89,15 +95,18 @@ class StochHECRAS:
             "porosity": random.choice(self.stochICE.porosity),
             "ice_thickness": random.choice(self.stochICE.Frontthick),
             "ice_cover_n": random.choice(self.stochICE.ice_cover_n),
-            "ds_elev":random.choice(self.stochICE.ds_elev),
         }
+
+        if self.stochICE.is_there_ds_elev:
+            random_mappings["ds_elev"] = random.choice(self.stochICE.ds_elev) # SC
+
         return random_mappings.get(var_name, None)
     
     def apply_settings(self):
         """
         Ensures that parameters are properly applied in the system.
         """
-        self.set_flowrate()
+        self.set_flowrate_mitis()
         self.set_phi()
         self.set_porosity()
         self.thicknesses = [[f"{self.ice_thickness},{self.ice_thickness},{self.ice_thickness}"]]
@@ -105,6 +114,9 @@ class StochHECRAS:
         self.ice_cover_Manning = [[f"{self.ice_cover_n},{self.ice_cover_n},{self.ice_cover_n}"]]
         self.set_ice_cover_manning_values()
         self.set_ice_jam_location()
+        self.set_ds_elevation()
+        self.set_ice_max_mean_velocity() #SC
+        self.set_ice_fixed_manning() # SC
 
     def __getstate__(self):
         """
@@ -160,6 +172,8 @@ class StochHECRAS:
         self.ice_thickness_id = 184  # Ice thickness ID
         self.MinChEle = 5  # Minimum channel elevation
         self.station_nbr_id = 161  # Station number ID
+        self.ice_volume_id = 186 # Cumulative volume of ice in an ice jam.
+
 
         # Store modified cross-section data
         self.xs_data_modified = self.stochICE.xs_data
@@ -185,12 +199,20 @@ class StochHECRAS:
         self.ice_cover_n_values=[]
         self.jam_loc_upstream = []
         self.jam_loc_downstream = []
+        self.ds_elev_values = [] # SC
+
+        # Ice volume  # SC 
+        self.ice_vol_ups = [] 
+        self.ice_vol_ds = []  
+        self.ice_vol_diff = []
     
+        self.proc_number = self.stochICE.proc_number
+
         # Read the initial geometry file content
         self.get_init_geofile_content()
     
         for j in range(self.stochICE.NSims):
-            self.sim_key = f'sim_{j+1}'
+            self.sim_key = f"sim_{self.proc_number:02d}_{j+1:04d}" # SC
             self.result_profiles[self.sim_key] = {}
     
             # Start the stopwatch for this simulation
@@ -212,6 +234,9 @@ class StochHECRAS:
             self.ice_cover_n_values.append(self.ice_cover_n)
             self.jam_loc_upstream.append(self.location[1])
             self.jam_loc_downstream.append(self.location[0])
+
+            if self.stochICE.is_there_ds_elev:
+                self.ds_elev_values.append(self.ds_elev) # SC
     
             # Save copies of geo and flow files
             self.store_geofile()
@@ -220,10 +245,22 @@ class StochHECRAS:
             # Open the HEC-RAS project and run the simulation
             self.RC.Project_Open(self.stochICE.ras_file)
             self.NMsg, self.TabMsg, self.block = None, None, True
+
     
-            print(f'Sim {j+1}/{self.stochICE.NSims} | Q = {self.flow:.2f}, Phi = {self.phi:.2f}, Porosity = {self.porosity:.2f}, Ice thickness = {self.ice_thickness:.2f}, Ice Mann = {self.ice_cover_n:.3f}')
-            print(f"Ice Jam: Chainage {self.location[0]} - {self.location[1]}")
+            # Defines the status text shown as simulations run, adds WSE value if necessary:
+            simulation_status_text = f'Sim {j+1}/{self.stochICE.NSims} | Q = {self.flow:.2f}, Phi = {self.phi:.2f}, Porosity = {self.porosity:.2f}, Ice thickness = {self.ice_thickness:.2f}, Ice Mann = {self.ice_cover_n:.3f}' # SC
     
+            if self.stochICE.is_there_ds_elev:
+                simulation_status_text = simulation_status_text + f', Downs. WSE = {self.ds_elev:.2f}'
+            print(simulation_status_text) # SC
+
+
+
+
+#            print(f'Sim {j+1}/{self.stochICE.NSims} | Q = {self.flow:.2f}, Phi = {self.phi:.2f}, Porosity = {self.porosity:.2f}, Ice thickness = {self.ice_thickness:.2f}, Ice Mann = {self.ice_cover_n:.3f}')
+            print(f"Ice Jam: Chainage {self.location[0]} - {self.location[1]}")  
+
+
             # Run the current simulation plan
             self.v1, self.NMsg, self.TabMsg, self.v2 = self.RC.Compute_CurrentPlan(self.NMsg, self.TabMsg, self.block)
     
@@ -251,6 +288,30 @@ class StochHECRAS:
                     # Station number
                     stationNbr, *_ = self.RC.Output_NodeOutput(self.RiverID, self.ReachID, i + 1, 0, 1, self.station_nbr_id)
                     stations.append(stationNbr)
+
+
+            # Produce list of station numbers as floats 
+            TabRS_float_list = []
+            for i in range(self.NNod):
+                XSectionNbr = self.TabRS[i].split() #Using XSection number to avoid conflict with stationNbr above
+                TabRS_float_list.append(float(XSectionNbr[0]))
+
+
+
+            # Ice volumes
+            upstream_icevol_location = self.location[1]
+            downstream_icevol_location = self.location[0]
+
+            upstream_idx = TabRS_float_list.index(upstream_icevol_location)
+            downstream_idx = TabRS_float_list.index(downstream_icevol_location)
+
+            ice_vol_ups, *_ = self.RC.Output_NodeOutput(self.RiverID, self.ReachID, upstream_idx+1, 0, 1, self.ice_volume_id)
+            ice_vol_ds, *_ = self.RC.Output_NodeOutput(self.RiverID, self.ReachID, downstream_idx+1, 0, 1, self.ice_volume_id)
+
+            self.ice_vol_ups.append(ice_vol_ups)
+            self.ice_vol_ds.append(ice_vol_ds)
+            self.ice_vol_diff.append(ice_vol_ups - ice_vol_ds)
+
     
             # Store results for this simulation
             self.result_profiles[self.sim_key] = {
@@ -261,12 +322,13 @@ class StochHECRAS:
                 'station': np.asarray(stations),
             }
 
+
             #WSE map
             self.retain_largest_pixel_area(self.stochICE.wse_map_path)
 
             tif_filename = os.path.join(
                 self.stochICE.wse_tifs_path,
-                f"WSE_{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.porosity}_{self.location[0]}_{self.location[1]}.tif",
+                f"WSE_{self.sim_key}_{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.porosity}_{self.location[0]}_{self.location[1]}.tif",
             )
             shutil.copyfile(self.stochICE.wse_map_path, tif_filename)
     
@@ -280,13 +342,14 @@ class StochHECRAS:
 
             tif_filename = os.path.join(
                 self.stochICE.depth_tifs_path,
-                f"Depth_{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.porosity}_{self.location[0]}_{self.location[1]}.tif",
+                f"Depth_{self.sim_key}_{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.porosity}_{self.location[0]}_{self.location[1]}.tif",
             )
             shutil.copyfile(self.stochICE.depth_map_path, tif_filename)
     
             # Remove temporary files
             for _file in glob.glob(os.path.join(self.stochICE.depth_tifs_path, "*.vrt")):
                 os.remove(_file)
+
 
             self.extract_wse_profiles()
     
@@ -302,7 +365,7 @@ class StochHECRAS:
     
         # Store input parameters across simulations
         self.input_parms = pd.DataFrame({
-            #'sim_key': self.sim_keys,
+            'sim_key': self.sim_keys,
             'Q': self.flow_rates,
             'phi': self.phi_values,
             'porosity': self.porosity_values,
@@ -310,7 +373,13 @@ class StochHECRAS:
             'ice_cover_n': self.ice_cover_n_values,
             'jam_loc_upstream': self.jam_loc_upstream,
             'jam_loc_downstream': self.jam_loc_downstream,
-        })
+            'ice_vol_head':self.ice_vol_ds, # SC 
+            'ice_vol_toe':self.ice_vol_ups, # SC
+            'ice_vol_jam':self.ice_vol_diff # SC 
+            })
+
+        if self.stochICE.is_there_ds_elev:
+            self.input_parms['ds_elev'] = self.ds_elev_values # SC
         
         # Save to CSV
         csv_path = os.path.join(self.stochICE.prjDir, "sim_parameters.csv")
@@ -404,7 +473,7 @@ class StochHECRAS:
     
                 wse_filename = os.path.join(
                     self.stochICE.wse_profiles_path,
-                    f"{reach_name}_WSE_{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.porosity}_{self.location[0]}_{self.location[1]}.csv"
+                    f"{self.sim_key}_{reach_name}_WSE_{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.porosity}_{self.location[0]}_{self.location[1]}.csv"
                 )
     
                 with open(wse_filename, mode='w', newline='') as csv_file:
@@ -452,6 +521,21 @@ class StochHECRAS:
         for item in self.xs_data_modified:
             self.xs_data_modified[item]["Ice Mann"]['val'] = self.ice_cover_Manning[0]
 
+    def set_ice_max_mean_velocity(self): # SC Change
+        """Sets the ice max mean velocity"""
+        for item in self.xs_data_modified:
+            self.xs_data_modified[item]["Ice Max Mean Vel"]['val'] = self.stochICE.ice_max_mean_velocity
+
+    def set_ice_fixed_manning(self): # SC Change
+        """Sets the ice fixed manning option (default is no)"""
+        for item in self.xs_data_modified:
+            if self.stochICE.ice_fixed_man : 
+                self.xs_data_modified[item]["Ice Fixed Mann"]['val'] = -1
+
+            else:
+                self.xs_data_modified[item]["Ice Fixed Mann"]['val'] = 0
+
+
     def set_phi(self):
         """Sets the ice friction angle for each cross-section in the geometry."""
         for item in self.xs_data_modified:
@@ -472,7 +556,12 @@ class StochHECRAS:
                     self.location[0] <= self.xs_data_modified[item]['chainage'] <= self.location[1]):
                 # Set ice jam location
                 self.xs_data_modified[item]["Ice Is Channel"]['val'] = str(-1)
-                self.xs_data_modified[item]["Ice Is OB"]['val'] = str(0)
+
+                if self.stochICE.ice_jam_in_OB:
+                    self.xs_data_modified[item]["Ice Is OB"]['val'] = str(-1) # SC Change
+                else:
+                    self.xs_data_modified[item]["Ice Is OB"]['val'] = str(0)
+
             else:
                 # Set default values for non-ice jam locations
                 self.xs_data_modified[item]["Ice Is Channel"]['val'] = str(0)
@@ -483,7 +572,8 @@ class StochHECRAS:
     def remove_ice_upstream_of_jam(self):
         
         for item in self.xs_data_modified:
-            if (self.xs_data_modified[item]['Reach'] == self.stochICE.ice_jam_reach and self.xs_data_modified[item]['chainage'] >= self.location[1]):
+            # if (self.xs_data_modified[item]['Reach'] == self.stochICE.ice_jam_reach and self.xs_data_modified[item]['chainage'] >= self.location[1]):
+            if (self.xs_data_modified[item]['Reach'] == self.stochICE.ice_jam_reach and self.xs_data_modified[item]['chainage'] > self.location[1]): # SC Change
                 self.xs_data_modified[item]["Ice Thickness"]['val'] = ["0,0,0"]
                 
     
@@ -545,6 +635,23 @@ class StochHECRAS:
                 self.replace_line()
             except TypeError:
                 pass
+
+            # Update Ice Friction Angle # SC Change
+            try:
+                self.toWrite = f"Ice Max Mean Vel={item['Ice Max Mean Vel']['val']}\n"
+                self.lineNmb = item['Ice Max Mean Vel']['lnNum']
+                self.replace_line()
+            except TypeError:
+                pass
+
+            # Update Fixed Manning n # SC Change
+            try:
+                self.toWrite = f"Ice Fixed Mann={item['Ice Fixed Mann']['val']}\n"
+                self.lineNmb = item['Ice Fixed Mann']['lnNum']
+                self.replace_line()
+            except TypeError:
+                pass
+
     
         # Finalize geometry file updates
         self.close_geofile()
@@ -581,11 +688,15 @@ class StochHECRAS:
         if hasattr(self, 'out') and self.out:
             self.out.close()
 
-    def set_ds_elevation(self):
+    def set_ds_elevation(self): #SC
         """
         Sets downstream water level in the HEC-RAS flow file.
 
         """
+
+        if not self.stochICE.is_there_ds_elev:
+            return
+
         with open(self.stochICE.flow_file, 'r') as file:
             lines = file.readlines()
     
@@ -601,7 +712,7 @@ class StochHECRAS:
         # Update water level
         for idx, reach_line in enumerate(river_reaches):
             if idx == 0:
-                updated_lines[reach_line + 1] = f"Dn Known WS={self.ds_elev}\n"
+                updated_lines[reach_line + 0 ] = f"Dn Known WS={self.ds_elev}\n" # SC
     
         # Save the updated flow file
         with open(self.stochICE.flow_file, 'w') as file:
@@ -643,6 +754,116 @@ class StochHECRAS:
         with open(self.stochICE.flow_file, 'w') as file:
             file.writelines(updated_lines)
     
+
+    def set_flowrate_mitis(self):
+            """
+            Updates the flow rate in the HEC-RAS flow file.
+        
+            This method supports scenarios with a single reach or an upstream reach
+            divided into two sections. Flow rates are either applied directly or split
+            evenly between upstream sections.
+            """
+
+
+            # Read flow distribution per xsection # SC
+            reach_distributions = self.stochICE.reach_distributions
+
+            # Regroup xsections and proportions in a list with two separate columns
+            col1, col2 = zip(*reach_distributions)
+            reach_distributions = [list(col1), list(col2)]
+
+            # transform xsections to floats
+            reach_distributions[0][:] = [float(element) for element in reach_distributions[0][:]]
+
+
+
+            with open(self.stochICE.flow_file, 'r') as file:
+                lines = file.readlines()
+        
+            updated_lines = []
+            river_reaches = []
+            indexes = []
+            xsections = []
+            current_reach_index = -1
+        
+            # # Identify the river reaches
+            # for i, line in enumerate(lines):
+            #     if "River Rch & RM" in line:
+            #         current_reach_index += 1
+            #         river_reaches.append(i)
+            #     updated_lines.append(line)
+        
+
+            # Identify the river reaches
+            for i, line in enumerate(lines):
+                if "River Rch & RM" in line:
+                    current_reach_index += 1
+                    xsections.append(float(line.split(',')[-1]))
+                    indexes.append(i)
+                updated_lines.append(line)
+                
+            river_reaches = [indexes,xsections]
+
+
+
+        # Some checks (use variables a and b to simplify code)
+            a = river_reaches[1][:]
+            b = reach_distributions[0][:]
+
+                
+        # Check that the length of the flow proportion list (dist) is equal to the number of flow lines found in the flow file    
+            try:
+                if len(a) != len(b):
+                    raise ValueError("Fatal error: reach_distributions length must match number of streams in the flow file")
+                    result = [x + y for x, y in zip(a, b)]
+            except ValueError as e:
+                print(e)
+                raise
+
+        # Check that all xsections found in the flow file are in the flow proportion list 
+            try:
+                unfound_xsections = set(b) - set(a)
+                if unfound_xsections:
+                    raise ValueError(f"Fatal error: The following xsections (as indicated in the input params.) are missing in the flow file: \n {unfound_xsections}")
+            
+            except ValueError as e:
+                print(e)
+                raise
+
+            
+            for idx, reach_line in enumerate(river_reaches[0]):
+                line = updated_lines[reach_line]
+                updated_xsection = float(line.split(',')[-1])
+                flowshare_idx = reach_distributions[0][:].index(updated_xsection)
+                updated_flow = self.flow * reach_distributions[1][flowshare_idx]
+                updated_lines[reach_line + 1] = f"     {updated_flow:.2f}\n"
+
+
+
+
+
+
+
+
+            # for idx, reach_line in enumerate(river_reaches):
+
+            #     reach_flowrate = self.flow*reach_distributions[idx]
+
+            #     updated_lines[reach_line + 1] = f"     {reach_flowrate}\n"
+
+
+                # if idx == 0:
+                #     # updated_lines[reach_line + 1] = f"     {self.flow}\n"
+                #     updated_lines[reach_line + 1] = f"     {183}\n"                    
+                # else:
+                #     # half_value = self.flow / 2
+                #     half_value = 73
+                #     updated_lines[reach_line + 1] = f"     {half_value}\n"
+        
+            # Save the updated flow file
+            with open(self.stochICE.flow_file, 'w') as file:
+                file.writelines(updated_lines)
+
     def store_geofile(self):
         """
         Saves a copy of the modified geometry file with unique simulation parameters.
@@ -650,10 +871,22 @@ class StochHECRAS:
         This method ensures each simulation run has its own geometry file for
         future reference and debugging purposes.
         """
-        geo_copy_path = os.path.join(
-            self.stochICE.data_geo_files_path,
-            f"{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.location[0]}_{self.location[1]}.g01"
-        )
+        if self.stochICE.is_there_ds_elev: # SC
+            geo_copy_path = os.path.join(
+                self.stochICE.data_geo_files_path,
+                # f"{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.location[0]}_{self.location[1]}.g01"
+                # f"{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.location[0]}_{self.location[1]}_{self.ds_elev}.g01" # SC
+                f"{self.sim_key}_{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.location[0]}_{self.location[1]}_{self.ds_elev}.g01" # SC
+            )
+
+        else:
+            geo_copy_path = os.path.join(
+                self.stochICE.data_geo_files_path,
+                # f"{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.location[0]}_{self.location[1]}.g01"
+                f"{self.sim_key}_{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.location[0]}_{self.location[1]}.g01" # SC
+            )
+
+
         shutil.copyfile(self.stochICE.geo_file, geo_copy_path)
     
     def store_flowfile(self):
@@ -663,10 +896,22 @@ class StochHECRAS:
         Similar to `store_geofile`, this method creates a unique flow file
         for each simulation to track parameter variations and results.
         """
-        flow_copy_path = os.path.join(
-            self.stochICE.data_flow_files_path,
-            f"{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.location[0]}_{self.location[1]}.f01"
-        )
+        if self.stochICE.is_there_ds_elev: # SC
+            flow_copy_path = os.path.join(
+                self.stochICE.data_flow_files_path,
+                # f"{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.location[0]}_{self.location[1]}.f01" # SC
+                # f"{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.location[0]}_{self.location[1]}_{self.ds_elev}.f01"
+                f"{self.sim_key}_{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.location[0]}_{self.location[1]}_{self.ds_elev}.f01"
+            )
+
+        else:
+            flow_copy_path = os.path.join(
+                self.stochICE.data_flow_files_path,
+                # f"{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.location[0]}_{self.location[1]}.f01" # SC
+                f"{self.sim_key}_{self.flow}_{self.ice_thickness}_{self.ice_cover_n}_{self.phi}_{self.location[0]}_{self.location[1]}.f01"
+
+            )
+
         shutil.copyfile(self.stochICE.flow_file, flow_copy_path)
 
     def make_frequency_flood_map(self):
@@ -684,6 +929,11 @@ class StochHECRAS:
         
         # Get list of flood maps
         flood_maps = os.listdir(self.stochICE.depth_tifs_path)
+
+        if not flood_maps:
+            print(f"Flood map files were not found. The frequency flood map will not be created")
+            return
+
         aggregated_map = None
         
         # Process each flood map
@@ -744,6 +994,11 @@ class StochHECRAS:
         depth_maps = os.listdir(self.stochICE.depth_tifs_path)
         max_depth = None
     
+        if not depth_maps:
+            print(f"Maximum depth map files were not found. The maximum depth map will not be created")
+            return
+
+
         for depth_map in depth_maps:
             map_path = os.path.join(self.stochICE.depth_tifs_path, depth_map)
             with rasterio.open(map_path) as tiff:
@@ -786,6 +1041,10 @@ class StochHECRAS:
         wse_maps = os.listdir(self.stochICE.wse_tifs_path)
         max_wse = None
     
+        if not wse_maps:
+            print(f"wse maps files were not found. The maximum wse map will not be created")
+            return
+
         for wse_map in wse_maps:
             map_path = os.path.join(self.stochICE.wse_tifs_path, wse_map)
             with rasterio.open(map_path) as tiff:
@@ -810,6 +1069,7 @@ class StochHECRAS:
     
         elapsed_time = time.time() - start_time  # Calculate elapsed time
         print(f"Maximum wse map created successfully in {elapsed_time:.2f} seconds.")
+        print(f"Waiting for remaining processors...")
 
 
 
