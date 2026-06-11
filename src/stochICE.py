@@ -46,7 +46,6 @@ class StochICE_HECRAS:
     def __init__(self, prjDir: str, batch_ID: str, ras_file: str, geo_file: str,
                  flow_file: str, wse_file: str, depth_file: str, NSims: int, ice_jam_reach: int, ice_jam_in_OB: bool, 
                  write_maps: int,ice_fixed_man: int, ice_max_mean_velocity: float, reach_distributions: list, stochvars: dict, proc_number): # SC_Change
-        print("\n\nHola 1\n\n")
         """
         Initializes the StochICE_HECRAS class and sets up the simulation environment.
 
@@ -498,9 +497,9 @@ class StochICE_HECRAS:
             self.is_there_ds_elev=False
 
         if self.ice_fixed_man:
-            print(f"Warning, ice jam fixed Manning n set to True.")
+            print(f"Warning: ice-jam Manning's n is fixed.")
         else: 
-            print(f"Fixed Manning n set to False. Nezhikovsky's data will be used")
+            print(f"Warning: ice-jam Manning's n will be computed using Nezhikovsky's equation")
 
         print(f"Maximum under ice mean velocity set to: {self.ice_max_mean_velocity} m/s.")
 
