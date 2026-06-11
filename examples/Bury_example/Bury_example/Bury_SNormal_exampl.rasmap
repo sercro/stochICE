@@ -1,0 +1,202 @@
+<RASMapper>
+  <Version>2.0.0</Version>
+  <RASProjectionFilename Filename=".\External Dependencies\NAD83_MTM7.prj" />
+  <Features>
+    <Layer Name="Profile Lines" Type="PolylineFeatureLayer" Filename="..\..\..\..\Glace\Bury_clean\Bury_StochICE_CRIPE\Features\Profile Lines.shp" />
+  </Features>
+  <Geometries Checked="True" Expanded="True">
+    <Layer Name="Bury_Turcotte_Glace" Type="RASGeometry" Checked="True" Expanded="True" Filename=".\Bury_SNormal_exampl.g01.hdf">
+      <Layer Type="RASRiver" Checked="True">
+        <LabelFeatures Checked="True" PercentPosition="0" rows="1" cols="2" r0c0="River" r0c1="Reach" Position="3" Color="-16777216" FontSize="8.25" />
+      </Layer>
+      <Layer Type="RASJunction">
+        <LabelFeatures Checked="True" PercentPosition="0" rows="1" cols="1" r0c0="Name" Position="3" Color="-16777216" FontSize="8.25" />
+      </Layer>
+      <Layer Type="FlowPaths" Checked="True" />
+      <Layer Type="RASXS" Checked="True" UnitsRiverStation="Feet" RiverStationDecimalPlaces="0">
+        <LabelFeatures Checked="True" PercentPosition="0" rows="1" cols="1" r0c0="River Station" Position="3" Color="-16777216" FontSize="8.25" />
+      </Layer>
+      <Layer Type="RASStorageArea">
+        <LabelFeatures Checked="True" PercentPosition="0" rows="1" cols="1" r0c0="Name" Position="3" Color="-16777216" FontSize="8.25" />
+      </Layer>
+      <Layer Type="MeshPerimeterLayer">
+        <LabelFeatures Checked="True" PercentPosition="0" rows="1" cols="1" r0c0="Name" Position="3" Color="-16777216" FontSize="8.25" />
+      </Layer>
+      <Layer Name="Culvert Groups" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="" />
+      <Layer Name="Culvert Barrels" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Bridges/Culverts" />
+      <Layer Name="Gate Groups" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="" />
+      <Layer Name="Gate Openings" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Inline Structures" />
+      <Layer Name="Culvert Groups" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="" />
+      <Layer Name="Culvert Barrels" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Inline Structures" />
+      <Layer Name="Rating Curve Outlets" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Inline Structures" />
+      <Layer Name="Outlet Time Series" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Inline Structures" />
+      <Layer Name="Gate Groups" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="" />
+      <Layer Name="Gate Openings" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Lateral Structures" />
+      <Layer Name="Culvert Groups" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="" />
+      <Layer Name="Culvert Barrels" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Lateral Structures" />
+      <Layer Name="Rating Curve Outlets" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Lateral Structures" />
+      <Layer Name="Outlet Time Series" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Lateral Structures" />
+      <Layer Name="Gate Groups" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="" />
+      <Layer Name="Gate Openings" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="SA/2D Connections" />
+      <Layer Name="Culvert Groups" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="" />
+      <Layer Name="Culvert Barrels" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="SA/2D Connections" />
+      <Layer Name="Rating Curve Outlets" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="SA/2D Connections" />
+      <Layer Name="Outlet Time Series" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="SA/2D Connections" />
+      <Layer Type="StructureLayer" UnitsRiverStation="Feet" RiverStationDecimalPlaces="0" />
+      <Layer Type="FinalNValueLayer">
+        <ResampleMethod>near</ResampleMethod>
+        <Surface On="True" />
+      </Layer>
+      <Layer Name="Final Values" Type="InterpretationRasterizerLayer" Filename=".\Bury_SNormal_exampl.g01.hdf">
+        <ResampleMethod>near</ResampleMethod>
+        <Surface On="True" />
+      </Layer>
+      <Layer Name="Final Values" Type="InterpretationRasterizerLayer" Filename=".\Bury_SNormal_exampl.g01.hdf">
+        <ResampleMethod>near</ResampleMethod>
+        <Surface On="True" />
+      </Layer>
+    </Layer>
+  </Geometries>
+  <Plans>
+    <Layer Name="initial_plan" Type="RASPlan" Filename=".\Bury_SNormal_exampl.p01" GeometryHDF=".\Bury_SNormal_exampl.g01.hdf">
+      <Layer Name="Encroachment Regions" Type="RASEncroachmentPolygons" Filename="..\..\Bury_ds_wse\Bury_clean\Bury_StochICE_CRIPE\Bury_SNormal_exampl.p01" />
+    </Layer>
+  </Plans>
+  <EventConditions />
+  <Results Checked="True" Expanded="True">
+    <Layer Name="Montecarlo" Type="RASResults" Checked="True" Expanded="True" Filename=".\Bury_SNormal_exampl.p01.hdf">
+      <Layer Name="Event Conditions" Type="RASEventConditions" Filename="..\..\Bury_ds_wse\Bury_clean\Bury_StochICE_CRIPE\Bury_SNormal_exampl.p01.hdf">
+        <Layer Name="Wind Layer" Type="ResultWindLayer" Filename="..\..\Bury_ds_wse\Bury_clean\Bury_StochICE_CRIPE\Bury_SNormal_exampl.p01.hdf">
+          <ResampleMethod>near</ResampleMethod>
+          <Surface On="True" />
+          <Metadata BandIndex="0" SubDataset="" />
+        </Layer>
+      </Layer>
+      <Layer Type="RASGeometry" Filename=".\Bury_SNormal_exampl.p01.hdf">
+        <Layer Type="RASXS" UnitsRiverStation="Feet" RiverStationDecimalPlaces="0" />
+        <Layer Name="Culvert Groups" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="" />
+        <Layer Name="Culvert Barrels" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Bridges/Culverts" />
+        <Layer Name="Gate Groups" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="" />
+        <Layer Name="Gate Openings" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Inline Structures" />
+        <Layer Name="Culvert Groups" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="" />
+        <Layer Name="Culvert Barrels" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Inline Structures" />
+        <Layer Name="Rating Curve Outlets" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Inline Structures" />
+        <Layer Name="Outlet Time Series" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Inline Structures" />
+        <Layer Name="Gate Groups" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="" />
+        <Layer Name="Gate Openings" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Lateral Structures" />
+        <Layer Name="Culvert Groups" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="" />
+        <Layer Name="Culvert Barrels" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Lateral Structures" />
+        <Layer Name="Rating Curve Outlets" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Lateral Structures" />
+        <Layer Name="Outlet Time Series" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="Lateral Structures" />
+        <Layer Name="Gate Groups" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="" />
+        <Layer Name="Gate Openings" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="SA/2D Connections" />
+        <Layer Name="Culvert Groups" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="" />
+        <Layer Name="Culvert Barrels" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="SA/2D Connections" />
+        <Layer Name="Rating Curve Outlets" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="SA/2D Connections" />
+        <Layer Name="Outlet Time Series" Type="VirtualGeometryFeatureLayer" ParentIdentifiers="SA/2D Connections" />
+        <Layer Type="StructureLayer" UnitsRiverStation="Feet" RiverStationDecimalPlaces="0" />
+        <Layer Type="FinalNValueLayer">
+          <ResampleMethod>near</ResampleMethod>
+          <Surface On="True" />
+        </Layer>
+        <Layer Name="Final Values" Type="InterpretationRasterizerLayer" Filename=".\Bury_SNormal_exampl.p01.hdf">
+          <ResampleMethod>near</ResampleMethod>
+          <Surface On="True" />
+        </Layer>
+        <Layer Name="Final Values" Type="InterpretationRasterizerLayer" Filename=".\Bury_SNormal_exampl.p01.hdf">
+          <ResampleMethod>near</ResampleMethod>
+          <Surface On="True" />
+        </Layer>
+      </Layer>
+      <Layer Name="Plan" Type="RASPlan" Filename=".\Bury_SNormal_exampl.p01.hdf" GeometryHDF=".\Bury_SNormal_exampl.p01.hdf">
+        <Layer Name="Encroachment Regions" Type="RASEncroachmentPolygons" Filename="..\..\Bury_ds_wse\Bury_clean\Bury_StochICE_CRIPE\Bury_SNormal_exampl.p01.hdf" />
+      </Layer>
+      <Layer Name="Depth" Type="RASResultsMap" Checked="True" Filename=".\Montecarlo\Depth (PF 1).vrt">
+        <LabelFeatures Checked="True" PercentPosition="0" rows="1" cols="1" r0c0="FID" Position="5" Color="-16777216" FontSize="8.25" />
+        <MapParameters MapType="depth" LayerName="Depth" OutputMode="Stored Current Terrain" StoredFilename=".\Montecarlo\Depth (PF 1).vrt" Terrain="Terrain" ProfileIndex="0" ProfileName="PF 1" ArrivalDepth="0" />
+      </Layer>
+      <Layer Name="Velocity" Type="RASResultsMap">
+        <MapParameters MapType="velocity" ProfileIndex="0" ProfileName="PF 1" />
+      </Layer>
+      <Layer Name="WSE" Type="RASResultsMap" Checked="True" Filename=".\Montecarlo\WSE (PF 1).vrt">
+        <Symbology>
+          <SurfaceFill Colors="-8388864,-16744448,-256,-23296,-65536,-16181,-65281" Values="0,16.6666666666667,33.3333333333333,50,66.6666666666667,83.3333333333333,100" Stretched="True" AlphaTag="255" UseDatasetMinMax="False" RegenerateForScreen="True" />
+        </Symbology>
+        <LabelFeatures Checked="True" PercentPosition="0" rows="1" cols="1" r0c0="FID" Position="5" Color="-16777216" FontSize="8.25" />
+        <MapParameters MapType="elevation" LayerName="Water Surface Elevation" OutputMode="Stored Current Terrain" StoredFilename=".\Montecarlo\WSE (PF 1).vrt" Terrain="Terrain" ProfileIndex="0" ProfileName="PF 1" ArrivalDepth="0" />
+      </Layer>
+    </Layer>
+  </Results>
+  <MapLayers>
+    <Layer Name="Mannings_n" Type="LandCoverLayer" Filename="..\..\..\..\Glace\Bury_clean\Bury_StochICE_CRIPE\base_files\geometry\Mannings_n.hdf" SelectedParameterForSurfaceFillLabel="ID">
+      <Symbology>
+        <ColorByteMap Type="System.Int32" Alpha="128" Values="" Colors="" ValuesExcludeLegend="" />
+      </Symbology>
+      <ColorByteMap Type="System.Int32" Alpha="128" Values="" Colors="" ValuesExcludeLegend="" />
+      <Layer Name="Classification Polygons" Type="LandCoverClassificationLayer" Filename="..\..\..\..\Glace\Bury_clean\Bury_StochICE_CRIPE\base_files\geometry\Mannings_n.hdf" />
+    </Layer>
+    <Layer Name="Mannings_n" Type="LandCoverLayer" Filename="..\..\..\..\..\Glace\Bury_clean\Bury_StochICE_CRIPE\base_files\geometry\Mannings_n.hdf" SelectedParameterForSurfaceFillLabel="ID">
+      <Symbology>
+        <ColorByteMap Type="System.Int32" Alpha="128" Values="" Colors="" ValuesExcludeLegend="" />
+      </Symbology>
+      <ColorByteMap Type="System.Int32" Alpha="128" Values="" Colors="" ValuesExcludeLegend="" />
+      <Layer Name="Classification Polygons" Type="LandCoverClassificationLayer" Filename="..\..\..\..\..\Glace\Bury_clean\Bury_StochICE_CRIPE\base_files\geometry\Mannings_n.hdf" />
+    </Layer>
+  </MapLayers>
+  <Terrains Checked="True" Expanded="True">
+    <Layer Name="Terrain" Type="TerrainLayer" Checked="True" Filename=".\External Dependencies\Terrain.hdf">
+      <ResampleMethod>near</ResampleMethod>
+      <Surface On="True" />
+    </Layer>
+  </Terrains>
+  <CurrentView>
+    <MaxX>219952.278636907</MaxX>
+    <MinX>219342.559409106</MinX>
+    <MaxY>5043725.17560451</MaxY>
+    <MinY>5043333.67594098</MinY>
+  </CurrentView>
+  <VelocitySettings>
+    <Density>1.5</Density>
+    <Lifetime>100</Lifetime>
+    <Radius>0.75</Radius>
+    <Method>2</Method>
+    <Timestep>1</Timestep>
+    <StaticColor>Black</StaticColor>
+    <SpeedRelativeToZoom>False</SpeedRelativeToZoom>
+  </VelocitySettings>
+  <AnimationSettings>
+    <DelayTimer>0</DelayTimer>
+  </AnimationSettings>
+  <Units>SI Units</Units>
+  <RenderMode>sloping</RenderMode>
+  <FullExtentPlotting>
+    <ExtentUserDefined>
+      <MaxX>220607.499420647</MaxX>
+      <MinX>218734.499420647</MinX>
+      <MaxY>5044040.04147371</MaxY>
+      <MinY>5042835.04147371</MinY>
+    </ExtentUserDefined>
+  </FullExtentPlotting>
+  <MarksWarpMethod>False</MarksWarpMethod>
+  <CurrentSettings>
+    <ProjectSettings>
+      <RiverStationUnits>Meters</RiverStationUnits>
+      <RiverStationDecimalPlaces>2</RiverStationDecimalPlaces>
+      <HorizontalDecimalPlaces>1</HorizontalDecimalPlaces>
+      <VerticalDecimalPlaces>2</VerticalDecimalPlaces>
+      <XSMaxPoints>450</XSMaxPoints>
+      <LSMaxPoints>1000</LSMaxPoints>
+      <ProfilePointMinCount>0</ProfilePointMinCount>
+      <ShowLegend>True</ShowLegend>
+      <ShowNorthArrow>False</ShowNorthArrow>
+      <ShowScaleBar>True</ShowScaleBar>
+      <ShowGreaterThanInLegend>False</ShowGreaterThanInLegend>
+      <MeshTolerance_MinFaceLength>0.05</MeshTolerance_MinFaceLength>
+      <MeshTolerance_EnsureCellPoint>False</MeshTolerance_EnsureCellPoint>
+    </ProjectSettings>
+    <Folders>
+      <TerrainDestinationFolder>.\Terrain</TerrainDestinationFolder>
+      <TerrainSourceFolder>.\base_files\terrain</TerrainSourceFolder>
+    </Folders>
+  </CurrentSettings>
+</RASMapper>

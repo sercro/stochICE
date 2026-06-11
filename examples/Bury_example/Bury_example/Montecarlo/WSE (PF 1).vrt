@@ -1,0 +1,32 @@
+<VRTDataset rasterXSize="1873" rasterYSize="1205">
+  <SRS dataAxisToSRSAxisMapping="1,2">PROJCS["NAD83_CSRS_MTM_zone_7",GEOGCS["GCS_NAD83(CSRS)",DATUM["NAD83_Canadian_Spatial_Reference_System",SPHEROID["GRS 1980",6378137,298.257222101004,AUTHORITY["EPSG","7019"]],AUTHORITY["EPSG","6140"]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",-70.5],PARAMETER["scale_factor",0.9999],PARAMETER["false_easting",304800],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH]]</SRS>
+  <GeoTransform>  2.1873449942064664e+05,  1.0000000000000000e+00,  0.0000000000000000e+00,  5.0440400414737109e+06,  0.0000000000000000e+00, -1.0000000000000000e+00</GeoTransform>
+  <VRTRasterBand dataType="Float32" band="1">
+    <Metadata>
+      <MDI key="STATISTICS_MAXIMUM">206.68550109863</MDI>
+      <MDI key="STATISTICS_MEAN">202.46378296489</MDI>
+      <MDI key="STATISTICS_MINIMUM">200.35685729981</MDI>
+      <MDI key="STATISTICS_STDDEV">2.5555890145906</MDI>
+    </Metadata>
+    <NoDataValue>-9999</NoDataValue>
+    <ColorInterp>Gray</ColorInterp>
+    <Histograms>
+      <HistItem>
+        <HistMin>200.356857299805</HistMin>
+        <HistMax>206.685501098633</HistMax>
+        <BucketCount>256</BucketCount>
+        <IncludeOutOfRange>1</IncludeOutOfRange>
+        <Approximate>0</Approximate>
+        <HistCounts>19780|3392|1586|717|401|402|283|262|258|256|232|225|226|233|168|130|124|119|116|118|112|92|60|70|68|67|71|69|76|103|161|195|191|222|222|240|272|194|60|62|67|66|65|66|74|76|75|75|71|63|56|60|64|66|62|62|63|64|59|67|60|74|107|115|125|102|94|94|97|112|114|116|114|118|108|111|106|124|157|141|133|121|118|120|118|122|120|127|121|116|109|109|105|103|101|107|87|89|87|89|85|86|79|80|80|79|79|82|79|82|85|68|63|61|61|55|59|56|56|55|57|57|57|59|59|57|56|52|43|40|40|41|41|39|39|42|38|41|43|43|45|48|51|50|51|49|50|52|52|51|51|51|50|48|50|53|49|56|42|48|41|42|47|41|42|39|40|42|38|45|49|48|47|45|45|42|42|40|44|45|52|49|52|53|51|51|51|53|52|52|55|55|57|56|58|60|66|70|76|80|81|82|84|82|84|81|82|85|87|87|86|86|89|86|84|84|81|82|73|71|71|70|75|74|73|74|77|82|83|74|80|73|78|79|95|90|92|96|125|126|131|121|126|123|126|119|102|125|194|105|105|148|532|651|1632|6566</HistCounts>
+      </HistItem>
+    </Histograms>
+    <ComplexSource>
+      <SourceFilename relativeToVRT="1">WSE (PF 1).Terrain.MNT_Bury_aval.MNT_Bury_Aval.tif</SourceFilename>
+      <SourceBand>1</SourceBand>
+      <SourceProperties RasterXSize="1873" RasterYSize="1205" DataType="Float32" BlockXSize="256" BlockYSize="256" />
+      <SrcRect xOff="0" yOff="0" xSize="1873" ySize="1205" />
+      <DstRect xOff="0" yOff="0" xSize="1873" ySize="1205" />
+      <NODATA>-9999</NODATA>
+    </ComplexSource>
+  </VRTRasterBand>
+</VRTDataset>
