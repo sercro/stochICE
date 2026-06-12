@@ -22,7 +22,7 @@ from rasterio.features import shapes
 import geopandas as gpd
 from shapely.geometry import shape
 
-import stochHECRAS_postprocessing
+import stochICE_postprocessing as post
 
 from shapely.ops import unary_union
 
@@ -107,19 +107,16 @@ class StochHECRASParallel:
             self.run_scripts_in_parallel()
             self.copy_generated_data_back()
 
-            # SC
-            stochHECRAS_post = stochHECRAS_postprocessing.StochHECRAS_postprocessing(self)
-
-            stochHECRAS_post.plot_basic_wse_envelope()
+            post.plot_basic_wse_envelope(self.wse_profiles_path, self.basic_wse_path)
 
         if self.write_maps_flag:
             print("\n\n----------------------------------------------------------")
             print("         Making ensemble (simulation) maps")
             print("----------------------------------------------------------\n")
-            stochHECRAS_post.create_combined_maximum_depth_map()    
-            stochHECRAS_post.create_combined_maximum_wse_map()
-            stochHECRAS_post.create_combined_frequency_map(self) # You need to parse stochHECRAS_parallel so create_combined_frequency_map has access to the stochHECRAS_parallel.parse_simulation_num() function
-            # stochHECRAS_post.create_depth_percentiles()
+            post.create_combined_maximum_depth_map()    
+            post.create_combined_maximum_wse_map()
+            post.create_combined_frequency_map() # You need to parse stochHECRAS_parallel so create_combined_frequency_map has access to the stochHECRAS_parallel.parse_simulation_num() function
+            # post.create_depth_percentiles()
 
         else: 
             print("\n\n-----------------------------------------------------------")
