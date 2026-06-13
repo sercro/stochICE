@@ -113,9 +113,11 @@ class StochHECRASParallel:
             print("\n\n----------------------------------------------------------")
             print("         Making ensemble (simulation) maps")
             print("----------------------------------------------------------\n")
-            post.create_combined_maximum_depth_map()    
-            post.create_combined_maximum_wse_map()
-            post.create_combined_frequency_map() # You need to parse stochHECRAS_parallel so create_combined_frequency_map has access to the stochHECRAS_parallel.parse_simulation_num() function
+            post.create_combined_maximum_depth_map(self.max_depth_path)    
+            post.create_combined_maximum_wse_map(self.max_wse_path)
+
+            simulations_per_process = self.parse_simulation_count()
+            post.create_combined_frequency_map(self.frequency_tif_path, simulations_per_process) # You need to parse stochHECRAS_parallel so create_combined_frequency_map has access to the stochHECRAS_parallel.parse_simulation_num() function
             # post.create_depth_percentiles()
 
         else: 

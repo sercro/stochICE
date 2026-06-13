@@ -12,11 +12,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import pickle
 
-#import stochRIVICE
 import stochHECRAS
 import random
 import stochHECRAS_parallel
-import stochICE_postprocessing as post
+import stochICE_postprocessing as stochICE_postprocessing
 
 from datetime import datetime
 
@@ -42,6 +41,14 @@ class StochICE_HECRAS:
         ice_variables (list): List of ice-related variables used in the simulation.
         data_path (str): Directory for storing simulation data.
     """
+
+
+
+
+    __all__ = [
+        "stochICE_postprocessing",
+    ]
+
 
     def __init__(self, prjDir: str, batch_ID: str, ras_file: str, geo_file: str,
                  flow_file: str, wse_file: str, depth_file: str, NSims: int, ice_jam_reach: int, ice_jam_in_OB: bool, 
